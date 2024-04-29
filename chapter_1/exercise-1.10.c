@@ -1,3 +1,6 @@
+/* Write a program to copy its input to its output, replacing each tab by \t, each backspace by \b,
+and each backslash by \\. This makes tabs and backspaces visible in an unambiguous way. */
+
 #include <stdio.h>
 
 int main()
@@ -9,22 +12,19 @@ int main()
         if(c == '\t')
         {
             putchar('\\');
-            putchar('\t');
-            continue;
+            c = 't';
         }
 
         if(c == '\\')
         {
             putchar('\\');
-            putchar('\\');
-            continue;
+            c = '\\';
         }
 
         if(c == '\b')
         {
             putchar('\\');
-            putchar('\b');
-            continue;
+            c = 'b';
         }
 
         putchar(c);
