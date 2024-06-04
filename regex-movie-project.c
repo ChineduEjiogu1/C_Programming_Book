@@ -144,7 +144,7 @@ void load_movies(const char *filename) {
             field_index++;
         }
 
-        if (field_index < 12) {
+        if (field_index < 11) {
             fprintf(stderr, "Too few fields in line: %s\n", line);
             exit(EXIT_FAILURE);
         }
@@ -201,20 +201,47 @@ int validate_card_sec(const char *card_sec) {
 void lookup_movies_by_title(const char *title) {
     printf("\nPerforming lookup by Title\n");
     printf("==========================\n");
+    char lowercase_title[MAX_FIELD_LENGTH];
+    for (int i = 0; title[i]; i++) {
+        lowercase_title[i] = tolower(title[i]);
+    }
+    lowercase_title[strlen(title)] = '\0';
+
+    int suggestions_count = 0;
+    Movie suggestions[10];
+
     for (int i = 0; i < movie_count; i++) {
-        if (strcasecmp(movie_db[i].Title, title) == 0) {
-            movie_to_purchase = movie_db[i];
-            printf("Title: %s\n", movie_to_purchase.Title);
-            printf("Is this the movie you're looking for? (y/n): ");
-            char answer[3];
-            get_input("", answer, sizeof(answer));
-            if (tolower(answer[0]) == 'y') {
-                ok_to_purchase = 1;
-                return;
-            }
+        char lowercase_db_title[MAX_FIELD_LENGTH];
+        for (int j = 0; movie_db[i].Title[j]; j++) {
+            lowercase_db_title[j] = tolower(movie_db[i].Title[j]);
+        }
+        lowercase_db_title[strlen(movie_db[i].Title)] = '\0';
+
+        if (strstr(lowercase_db_title, lowercase_title)) {
+            suggestions[suggestions_count] = movie_db[i];
+            printf("%d. %s\n", suggestions_count + 1, movie_db[i].Title);
+            suggestions_count++;
+            if (suggestions_count >= 10) break;  // Limit suggestions to 10
         }
     }
-    printf("Movie not found.\n");
+
+    if (suggestions_count == 0) {
+        printf("Movie not found.\n");
+        return;
+    }
+
+    int choice;
+    printf("\nEnter the number of the movie you want to select: ");
+    scanf("%d", &choice);
+    getchar();
+
+    if (choice < 1 || choice > suggestions_count) {
+        printf("Invalid choice.\n");
+        return;
+    }
+
+    movie_to_purchase = suggestions[choice - 1];
+    ok_to_purchase = 1;
 }
 
 void lookup_movies_by_year(const char *year) {
@@ -320,6 +347,7 @@ void print_movie_info(const Movie *movie) {
     printf("Votes: %s\n", movie->Votes);
     printf("Revenue: %s\n", movie->Revenue);
     printf("Metascore: %s\n", movie->Metascore);
+    printf("Total Price: $15.00\n");
 }
 
 void confirm_purchase() {
