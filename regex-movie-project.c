@@ -1,13 +1,14 @@
+#include <ctype.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <regex.h>
 
 #define MAX_LINE_LENGTH 1024
 #define MAX_FIELD_LENGTH 100
 
-typedef struct {
+typedef struct
+{
     int Rank;
     char Title[MAX_FIELD_LENGTH];
     char Genre[MAX_FIELD_LENGTH];
@@ -22,7 +23,8 @@ typedef struct {
     char Metascore[MAX_FIELD_LENGTH];
 } Movie;
 
-typedef struct {
+typedef struct
+{
     char first_name[50];
     char last_name[50];
     char name_suffix[10];
@@ -38,39 +40,55 @@ typedef struct {
 
 Movie *movie_db = NULL;
 int movie_count = 0;
+int movie_capacity = 0;
 PurchaseInfo purchase_info;
 Movie movie_to_purchase;
 int ok_to_purchase = 0;
 
-void trim_whitespace(char *str) {
+void trim_whitespace(char *str)
+{
     char *end;
-    while (isspace((unsigned char)*str)) str++;
-    if (*str == 0) return;
+    while (isspace((unsigned char)*str))
+        str++;
+    if (*str == 0)
+        return;
     end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end)) end--;
+    while (end > str && isspace((unsigned char)*end))
+        end--;
     *(end + 1) = 0;
 }
 
-char *read_field(char **rest) {
+char *read_field(char **rest)
+{
     char *field = *rest;
-    if (*field == '"') {
+    if (*field == '"')
+    {
         field++;
         char *end = strchr(field, '"');
-        while (end && *(end + 1) == '"') {
+        while (end && *(end + 1) == '"')
+        {
             end = strchr(end + 2, '"');
         }
-        if (end) {
+        if (end)
+        {
             *end = '\0';
             *rest = end + 2;
-        } else {
+        }
+        else
+        {
             *rest = field + strlen(field);
         }
-    } else {
+    }
+    else
+    {
         char *end = strchr(field, ',');
-        if (end) {
+        if (end)
+        {
             *end = '\0';
             *rest = end + 1;
-        } else {
+        }
+        else
+        {
             *rest = field + strlen(field);
         }
     }
@@ -78,94 +96,102 @@ char *read_field(char **rest) {
     return field;
 }
 
-void load_movies(const char *filename) {
+void add_movie(Movie movie)
+{
+    if (movie_count == movie_capacity)
+    {
+        movie_capacity = movie_capacity == 0 ? 10 : movie_capacity * 2;
+        movie_db = realloc(movie_db, sizeof(Movie) * movie_capacity);
+        if (!movie_db)
+        {
+            perror("Memory reallocation failed");
+            exit(EXIT_FAILURE);
+        }
+    }
+    movie_db[movie_count++] = movie;
+}
+
+void load_movies(const char *filename)
+{
     FILE *file = fopen(filename, "r");
-    if (!file) {
+    if (!file)
+    {
         perror("Could not open file");
         exit(EXIT_FAILURE);
     }
 
     char line[MAX_LINE_LENGTH];
-    fgets(line, MAX_LINE_LENGTH, file);
+    fgets(line, MAX_LINE_LENGTH, file); // Skip header
 
-    while (fgets(line, MAX_LINE_LENGTH, file)) {
-        movie_db = realloc(movie_db, sizeof(Movie) * (movie_count + 1));
-        if (!movie_db) {
-            perror("Memory reallocation failed");
-            exit(EXIT_FAILURE);
-        }
-
+    while (fgets(line, MAX_LINE_LENGTH, file))
+    {
+        Movie movie = {0};
         char *rest = line;
         int field_index = 0;
-        while (*rest) {
+
+        while (*rest)
+        {
             char *token = read_field(&rest);
-            if (token[0] == '\0' && field_index == 11) {
-                strncpy(movie_db[movie_count].Metascore, "N/A", MAX_FIELD_LENGTH);
-            } else {
-                switch (field_index) {
-                    case 0:
-                        movie_db[movie_count].Rank = atoi(token);
-                        break;
-                    case 1:
-                        strncpy(movie_db[movie_count].Title, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 2:
-                        strncpy(movie_db[movie_count].Genre, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 3:
-                        strncpy(movie_db[movie_count].Description, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 4:
-                        strncpy(movie_db[movie_count].Director, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 5:
-                        strncpy(movie_db[movie_count].Actors, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 6:
-                        strncpy(movie_db[movie_count].Year, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 7:
-                        strncpy(movie_db[movie_count].Runtime, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 8:
-                        strncpy(movie_db[movie_count].Rating, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 9:
-                        strncpy(movie_db[movie_count].Votes, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 10:
-                        strncpy(movie_db[movie_count].Revenue, token, MAX_FIELD_LENGTH);
-                        break;
-                    case 11:
-                        strncpy(movie_db[movie_count].Metascore, token, MAX_FIELD_LENGTH);
-                        break;
-                }
+            switch (field_index)
+            {
+            case 0:
+                movie.Rank = atoi(token);
+                break;
+            case 1:
+                strncpy(movie.Title, token, MAX_FIELD_LENGTH);
+                break;
+            case 2:
+                strncpy(movie.Genre, token, MAX_FIELD_LENGTH);
+                break;
+            case 3:
+                strncpy(movie.Description, token, MAX_FIELD_LENGTH);
+                break;
+            case 4:
+                strncpy(movie.Director, token, MAX_FIELD_LENGTH);
+                break;
+            case 5:
+                strncpy(movie.Actors, token, MAX_FIELD_LENGTH);
+                break;
+            case 6:
+                strncpy(movie.Year, token, MAX_FIELD_LENGTH);
+                break;
+            case 7:
+                strncpy(movie.Runtime, token, MAX_FIELD_LENGTH);
+                break;
+            case 8:
+                strncpy(movie.Rating, token, MAX_FIELD_LENGTH);
+                break;
+            case 9:
+                strncpy(movie.Votes, token, MAX_FIELD_LENGTH);
+                break;
+            case 10:
+                strncpy(movie.Revenue, token, MAX_FIELD_LENGTH);
+                break;
+            case 11:
+                strncpy(movie.Metascore, token, MAX_FIELD_LENGTH);
+                break;
             }
             field_index++;
         }
-
-        if (field_index < 11) {
-            fprintf(stderr, "Too few fields in line: %s\n", line);
-            exit(EXIT_FAILURE);
-        }
-
-        movie_count++;
+        add_movie(movie);
     }
 
     fclose(file);
 }
 
-void get_input(const char *prompt, char *input, size_t size) {
+void get_input(const char *prompt, char *input, size_t size)
+{
     printf("%s", prompt);
     fgets(input, size, stdin);
     input[strcspn(input, "\n")] = '\0';
 }
 
-int regex_match(const char *pattern, const char *str) {
+int regex_match(const char *pattern, const char *str)
+{
     regex_t regex;
-    int ret;
-    ret = regcomp(&regex, pattern, REG_EXTENDED);
-    if (ret) {
+    int ret = regcomp(&regex, pattern, REG_EXTENDED);
+    if (ret)
+    {
         fprintf(stderr, "Could not compile regex\n");
         exit(1);
     }
@@ -174,35 +200,43 @@ int regex_match(const char *pattern, const char *str) {
     return !ret;
 }
 
-int validate_alpha_input(const char *input) {
+int validate_alpha_input(const char *input)
+{
     return regex_match("^[A-Za-z]+$", input);
 }
 
-int validate_email(const char *email) {
+int validate_email(const char *email)
+{
     return regex_match("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}$", email);
 }
 
-int validate_zipcode(const char *zipcode) {
+int validate_zipcode(const char *zipcode)
+{
     return regex_match("^[0-9]{5}(-[0-9]{4})?$", zipcode);
 }
 
-int validate_credit_card(const char *card_number) {
+int validate_credit_card(const char *card_number)
+{
     return regex_match("^[0-9]{16}$", card_number);
 }
 
-int validate_card_expr(const char *card_expr) {
+int validate_card_expr(const char *card_expr)
+{
     return regex_match("^(0[1-9]|1[0-2])/[0-9]{2}$", card_expr);
 }
 
-int validate_card_sec(const char *card_sec) {
+int validate_card_sec(const char *card_sec)
+{
     return regex_match("^[0-9]{3,4}$", card_sec);
 }
 
-void lookup_movies_by_title(const char *title) {
+void lookup_movies_by_title(const char *title)
+{
     printf("\nPerforming lookup by Title\n");
     printf("==========================\n");
     char lowercase_title[MAX_FIELD_LENGTH];
-    for (int i = 0; title[i]; i++) {
+    for (int i = 0; title[i]; i++)
+    {
         lowercase_title[i] = tolower(title[i]);
     }
     lowercase_title[strlen(title)] = '\0';
@@ -210,22 +244,26 @@ void lookup_movies_by_title(const char *title) {
     int suggestions_count = 0;
     Movie suggestions[10];
 
-    for (int i = 0; i < movie_count; i++) {
+    for (int i = 0; i < movie_count; i++)
+    {
         char lowercase_db_title[MAX_FIELD_LENGTH];
-        for (int j = 0; movie_db[i].Title[j]; j++) {
+        for (int j = 0; movie_db[i].Title[j]; j++)
+        {
             lowercase_db_title[j] = tolower(movie_db[i].Title[j]);
         }
         lowercase_db_title[strlen(movie_db[i].Title)] = '\0';
 
-        if (strstr(lowercase_db_title, lowercase_title)) {
-            suggestions[suggestions_count] = movie_db[i];
-            printf("%d. %s\n", suggestions_count + 1, movie_db[i].Title);
-            suggestions_count++;
-            if (suggestions_count >= 10) break;  // Limit suggestions to 10
+        if (strstr(lowercase_db_title, lowercase_title))
+        {
+            suggestions[suggestions_count++] = movie_db[i];
+            printf("%d. %s\n", suggestions_count, movie_db[i].Title);
+            if (suggestions_count >= 10)
+                break;
         }
     }
 
-    if (suggestions_count == 0) {
+    if (suggestions_count == 0)
+    {
         printf("Movie not found.\n");
         return;
     }
@@ -235,7 +273,8 @@ void lookup_movies_by_title(const char *title) {
     scanf("%d", &choice);
     getchar();
 
-    if (choice < 1 || choice > suggestions_count) {
+    if (choice < 1 || choice > suggestions_count)
+    {
         printf("Invalid choice.\n");
         return;
     }
@@ -244,19 +283,22 @@ void lookup_movies_by_title(const char *title) {
     ok_to_purchase = 1;
 }
 
-void lookup_movies_by_year(const char *year) {
+void lookup_movies_by_year(const char *year)
+{
     printf("\nPerforming lookup by Year\n");
     printf("==========================\n");
     int found = 0;
-    printf("Searching for year: '%s'\n", year);
-    for (int i = 0; i < movie_count; i++) {
-        if (strcmp(movie_db[i].Year, year) == 0) {
+    for (int i = 0; i < movie_count; i++)
+    {
+        if (strcmp(movie_db[i].Year, year) == 0)
+        {
             printf("%d. %s\n", i + 1, movie_db[i].Title);
             found = 1;
         }
     }
 
-    if (!found) {
+    if (!found)
+    {
         printf("No movies found for the year %s.\n", year);
         return;
     }
@@ -266,7 +308,8 @@ void lookup_movies_by_year(const char *year) {
     scanf("%d", &choice);
     getchar();
 
-    if (choice < 1 || choice > movie_count || strcmp(movie_db[choice - 1].Year, year) != 0) {
+    if (choice < 1 || choice > movie_count || strcmp(movie_db[choice - 1].Year, year) != 0)
+    {
         printf("Invalid choice.\n");
         return;
     }
@@ -275,65 +318,39 @@ void lookup_movies_by_year(const char *year) {
     ok_to_purchase = 1;
 }
 
-void prompt_billing_info() {
-    get_input("Enter first name: ", purchase_info.first_name, sizeof(purchase_info.first_name));
-    while (!validate_alpha_input(purchase_info.first_name)) {
-        printf("Invalid first name. Please enter only alphabetic characters.\n");
-        get_input("Enter first name: ", purchase_info.first_name, sizeof(purchase_info.first_name));
-    }
+void prompt_billing_info()
+{
+    const struct
+    {
+        const char *prompt;
+        char *field;
+        size_t size;
+        int (*validator)(const char *);
+        const char *error_msg;
+    } prompts[] = {
+        {"Enter first name: ", purchase_info.first_name, sizeof(purchase_info.first_name), validate_alpha_input, "Invalid first name. Please enter only alphabetic characters.\n"},
+        {"Enter last name: ", purchase_info.last_name, sizeof(purchase_info.last_name), validate_alpha_input, "Invalid last name. Please enter only alphabetic characters.\n"},
+        {"Enter name suffix (optional): ", purchase_info.name_suffix, sizeof(purchase_info.name_suffix), NULL, NULL},
+        {"Enter email address: ", purchase_info.email_address, sizeof(purchase_info.email_address), validate_email, "Invalid email address. Please enter a valid email.\n"},
+        {"Enter street address: ", purchase_info.street_address, sizeof(purchase_info.street_address), NULL, NULL},
+        {"Enter city: ", purchase_info.city, sizeof(purchase_info.city), validate_alpha_input, "Invalid city name. Please enter only alphabetic characters.\n"},
+        {"Enter state (2-letter abbreviation): ", purchase_info.state, sizeof(purchase_info.state), validate_alpha_input, "Invalid state abbreviation. Please enter a valid 2-letter state abbreviation.\n"},
+        {"Enter ZIP code: ", purchase_info.zipcode, sizeof(purchase_info.zipcode), validate_zipcode, "Invalid ZIP code. Please enter a valid ZIP code (5 or 9 digits).\n"},
+        {"Enter credit card number (16 digits): ", purchase_info.card_number, sizeof(purchase_info.card_number), validate_credit_card, "Invalid credit card number. Please enter a valid 16-digit credit card number.\n"},
+        {"Enter credit card expiration date (MM/YY): ", purchase_info.card_expr, sizeof(purchase_info.card_expr), validate_card_expr, "Invalid expiration date. Please enter a valid expiration date (MM/YY).\n"},
+        {"Enter credit card security code (CVV): ", purchase_info.card_sec, sizeof(purchase_info.card_sec), validate_card_sec, "Invalid CVV. Please enter a valid CVV (3 or 4 digits).\n"}};
 
-    get_input("Enter last name: ", purchase_info.last_name, sizeof(purchase_info.last_name));
-    while (!validate_alpha_input(purchase_info.last_name)) {
-        printf("Invalid last name. Please enter only alphabetic characters.\n");
-        get_input("Enter last name: ", purchase_info.last_name, sizeof(purchase_info.last_name));
-    }
-
-    get_input("Enter name suffix (optional): ", purchase_info.name_suffix, sizeof(purchase_info.name_suffix));
-    get_input("Enter email address: ", purchase_info.email_address, sizeof(purchase_info.email_address));
-    while (!validate_email(purchase_info.email_address)) {
-        printf("Invalid email address. Please enter a valid email.\n");
-        get_input("Enter email address: ", purchase_info.email_address, sizeof(purchase_info.email_address));
-    }
-
-    get_input("Enter street address: ", purchase_info.street_address, sizeof(purchase_info.street_address));
-    get_input("Enter city: ", purchase_info.city, sizeof(purchase_info.city));
-    while (!validate_alpha_input(purchase_info.city)) {
-        printf("Invalid city name. Please enter only alphabetic characters.\n");
-        get_input("Enter city: ", purchase_info.city, sizeof(purchase_info.city));
-    }
-
-    get_input("Enter state (2-letter abbreviation): ", purchase_info.state, sizeof(purchase_info.state));
-    while (!validate_alpha_input(purchase_info.state) || strlen(purchase_info.state) != 2) {
-        printf("Invalid state abbreviation. Please enter a valid 2-letter state abbreviation.\n");
-        get_input("Enter state (2-letter abbreviation): ", purchase_info.state, sizeof(purchase_info.state));
-    }
-
-    get_input("Enter ZIP code: ", purchase_info.zipcode, sizeof(purchase_info.zipcode));
-    while (!validate_zipcode(purchase_info.zipcode)) {
-        printf("Invalid ZIP code. Please enter a valid ZIP code (5 or 9 digits).\n");
-        get_input("Enter ZIP code: ", purchase_info.zipcode, sizeof(purchase_info.zipcode));
-    }
-
-    get_input("Enter credit card number (16 digits): ", purchase_info.card_number, sizeof(purchase_info.card_number));
-    while (!validate_credit_card(purchase_info.card_number)) {
-        printf("Invalid credit card number. Please enter a valid 16-digit credit card number.\n");
-        get_input("Enter credit card number (16 digits): ", purchase_info.card_number, sizeof(purchase_info.card_number));
-    }
-
-    get_input("Enter credit card expiration date (MM/YY): ", purchase_info.card_expr, sizeof(purchase_info.card_expr));
-    while (!validate_card_expr(purchase_info.card_expr)) {
-        printf("Invalid expiration date. Please enter a valid expiration date (MM/YY).\n");
-        get_input("Enter credit card expiration date (MM/YY): ", purchase_info.card_expr, sizeof(purchase_info.card_expr));
-    }
-
-    get_input("Enter credit card security code (CVV): ", purchase_info.card_sec, sizeof(purchase_info.card_sec));
-    while (!validate_card_sec(purchase_info.card_sec)) {
-        printf("Invalid CVV. Please enter a valid CVV (3 or 4 digits).\n");
-        get_input("Enter credit card security code (CVV): ", purchase_info.card_sec, sizeof(purchase_info.card_sec));
+    for (int i = 0; i < sizeof(prompts) / sizeof(prompts[0]); i++)
+    {
+        do
+        {
+            get_input(prompts[i].prompt, prompts[i].field, prompts[i].size);
+        } while (prompts[i].validator && !prompts[i].validator(prompts[i].field) && printf("%s", prompts[i].error_msg));
     }
 }
 
-void print_movie_info(const Movie *movie) {
+void print_movie_info(const Movie *movie)
+{
     printf("Movie Details:\n");
     printf("==============\n");
     printf("Title: %s\n", movie->Title);
@@ -350,7 +367,8 @@ void print_movie_info(const Movie *movie) {
     printf("Total Price: $15.00\n");
 }
 
-void confirm_purchase() {
+void confirm_purchase()
+{
     printf("\nMovie Purchase Confirmation\n");
     printf("===========================\n");
     printf("You have successfully purchased the movie '%s'!\n", movie_to_purchase.Title);
@@ -366,7 +384,8 @@ void confirm_purchase() {
     printf("Credit Card: **** **** **** %s\n", purchase_info.card_number + 12); // Only show last 4 digits
 }
 
-int main() {
+int main()
+{
     load_movies("IMDB-Movie-Data.csv");
 
     char title[MAX_FIELD_LENGTH];
@@ -376,20 +395,26 @@ int main() {
     char choice[10];
     get_input("", choice, sizeof(choice));
 
-    if (strcasecmp(choice, "title") == 0) {
+    if (strcasecmp(choice, "title") == 0)
+    {
         printf("Enter the movie title: ");
         get_input("", title, sizeof(title));
         lookup_movies_by_title(title);
-    } else if (strcasecmp(choice, "year") == 0) {
+    }
+    else if (strcasecmp(choice, "year") == 0)
+    {
         printf("Enter the movie year: ");
         get_input("", year, sizeof(year));
         lookup_movies_by_year(year);
-    } else {
+    }
+    else
+    {
         printf("Invalid choice.\n");
         return 1;
     }
 
-    if (ok_to_purchase) {
+    if (ok_to_purchase)
+    {
         prompt_billing_info();
         confirm_purchase();
     }
